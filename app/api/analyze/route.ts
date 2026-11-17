@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, transcript } = await req.json();
+  const { title, transcript, type } = await req.json();
   if (!transcript || String(transcript).trim().length < 30)
     return NextResponse.json({ error: "Transcript is too short." }, { status: 400 });
 
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
   const { data: meeting, error } = await supabase
     .from("meetings")
-    .insert({ user_id: user.id, title: title || "Untitled meeting", transcript, analysis })
+    .insert({ user_id: user.id, title: title || "Untitled meeting", transcript, analysis, type: type || "general" })
     .select("id")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

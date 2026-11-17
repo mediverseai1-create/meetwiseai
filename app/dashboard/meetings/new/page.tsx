@@ -1,14 +1,25 @@
 "use client";
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mic, Square } from "lucide-react";
+import { meetingTypes, templateBody } from "@/lib/templates";
 
 type SR = { start(): void; stop(): void; continuous: boolean; interimResults: boolean; lang: string; onresult: ((e: any) => void) | null; onend: (() => void) | null };
 
 export default function NewMeeting() {
+  return (
+    <Suspense>
+      <Form />
+    </Suspense>
+  );
+}
+
+function Form() {
   const router = useRouter();
+  const tpl = useSearchParams().get("template") ?? "";
+  const [type, setType] = useState(tpl || "general");
   const [title, setTitle] = useState("");
-  const [transcript, setTranscript] = useState("");
+  const [transcript, setTranscript] = useState(templateBody(tpl));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [rec, setRec] = useState(false);
@@ -44,7 +55,7 @@ export default function NewMeeting() {
     const res = await fetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, transcript }),
+      body: JSON.stringify({ title, transcript, type }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -60,6 +71,10 @@ export default function NewMeeting() {
       <h1 className="font-display text-3xl">New meeting</h1>
       <p className="mt-1 text-slate-500">Paste a transcript or record audio. Our agents do the rest.</p>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Meeting title (e.g. Q4 Strategy Review)" className="mt-6 w-full rounded-xl border border-black/15 bg-white px-4 py-3 outline-none focus:border-deep" />
+      <select value={type} onChange={(e) => { setType(e.target.value); if (!transcript.trim()) setTranscript(templateBody(e.target.value)); }} className="mt-3 w-full rounded-xl border border-black/15 bg-white px-4 py-3">
+        <option value="general">General meeting</option>
+        {meetingTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+      </select>
       <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} rows={16} placeholder="Paste transcript from Zoom, Teams, Google Meet — or type notes…" className="mt-3 w-full rounded-xl border border-black/15 bg-white px-4 py-3 outline-none focus:border-deep" />
       {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
       <div className="mt-4 flex gap-3">

@@ -44,7 +44,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           {mode === "login" ? "Welcome back" : "Create your account"}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          {mode === "login" ? "Log in to your workspace." : "Free plan. No credit card required."}
+          {mode === "login" ? "Log in to your workspace." : "Sign up to get started."}
         </p>
         <input
           type="email"

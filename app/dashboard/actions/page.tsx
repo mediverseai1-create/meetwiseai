@@ -1,43 +1,55 @@
 "use client";
 import { useEffect, useState } from "react";
+import { CheckSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { PageHead, Empty, Panel } from "@/components/ui";
 
-type Action = { id: string; text: string; owner: string | null; due: string | null; done: boolean };
+type A = { id: string; text: string; owner: string | null; due: string | null; status: string };
+const tabs = [["all", "All"], ["open", "Open"], ["in_progress", "In Progress"], ["completed", "Completed"]] as const;
 
 export default function Actions() {
-  const [items, setItems] = useState<Action[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [items, setItems] = useState<A[]>([]);
+  const [tab, setTab] = useState<string>("open");
 
   useEffect(() => {
-    createClient()
-      .from("actions")
-      .select("id,text,owner,due,done")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setItems(data ?? []);
-        setLoaded(true);
-      });
+    createClient().from("actions").select("id,text,owner,due,status").order("created_at", { ascending: false })
+      .then(({ data }) => setItems(data ?? []));
   }, []);
 
-  async function toggle(a: Action) {
-    setItems((p) => p.map((x) => (x.id === a.id ? { ...x, done: !x.done } : x)));
-    await createClient().from("actions").update({ done: !a.done }).eq("id", a.id);
+  async function setStatus(id: string, status: string) {
+    setItems((p) => p.map((x) => (x.id === id ? { ...x, status } : x)));
+    await createClient().from("actions").update({ status }).eq("id", id);
   }
+  const count = (k: string) => (k === "all" ? items.length : items.filter((i) => i.status === k).length);
+  const shown = tab === "all" ? items : items.filter((i) => i.status === tab);
 
   return (
     <div>
-      <h1 className="font-display text-3xl">Commitments</h1>
-      <p className="mt-1 text-slate-500">Everything your team promised, across all meetings.</p>
-      <div className="mt-6 space-y-3">
-        {loaded && items.length === 0 && <p className="rounded-2xl bg-white p-6 text-slate-500">No commitments yet.</p>}
-        {items.map((a) => (
-          <label key={a.id} className="flex cursor-pointer items-center gap-4 rounded-2xl bg-white p-5 shadow-sm">
-            <input type="checkbox" checked={a.done} onChange={() => toggle(a)} className="h-5 w-5 accent-[#0b7a4b]" />
-            <span className={`flex-1 ${a.done ? "text-slate-400 line-through" : ""}`}>{a.text}</span>
-            <span className="text-xs text-slate-500">{a.owner}{a.due ? ` · ${a.due}` : ""}</span>
-          </label>
+      <PageHead title="Action Items" cta={false} />
+      <div className="mb-6 flex gap-2">
+        {tabs.map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className={`rounded-lg px-4 py-1.5 text-sm font-medium ${tab === k ? "bg-hero-soft text-deep" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>
+            {l} <span className="text-slate-400">({count(k)})</span>
+          </button>
         ))}
       </div>
+      {shown.length === 0 ? (
+        <Empty icon={CheckSquare} title={`No ${tab === "all" ? "" : tab.replace("_", " ") + " "}action items`} />
+      ) : (
+        <Panel>
+          {shown.map((a) => (
+            <div key={a.id} className="flex items-center gap-4 border-b border-slate-100 px-6 py-4 last:border-0">
+              <div className="flex-1">
+                <p className={a.status === "completed" ? "text-slate-400 line-through" : "font-medium"}>{a.text}</p>
+                <p className="text-xs text-slate-400">{a.owner}{a.due ? ` · ${a.due}` : ""}</p>
+              </div>
+              <select value={a.status} onChange={(e) => setStatus(a.id, e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                <option value="open">Open</option><option value="in_progress">In progress</option><option value="completed">Completed</option>
+              </select>
+            </div>
+          ))}
+        </Panel>
+      )}
     </div>
   );
 }
